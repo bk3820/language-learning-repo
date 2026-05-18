@@ -44,3 +44,30 @@ Conjugations generated automatically. Newest entries appended below.
 | nous | allons | sommes allés | allions | irons |
 | vous | allez | êtes allés | alliez | irez |
 | ils/elles | vont | sont allés | allaient | iront |
+
+## prendre — _to take_
+
+<sub>added 2026-05-18 from `2026-05-18-issue-2.md`</sub>
+
+| Pronoun | Présent | Passé composé | Imparfait | Futur simple |
+|---|---|---|---|---|
+| je | prends | ai pris | prenais | prendrai |
+| tu | prends | as pris | prenais | prendras |
+| il/elle | prend | a pris | prenait | prendra |
+| nous | prenons | avons pris | prenions | prendrons |
+| vous | prenez | avez pris | preniez | prendrez |
+| ils/elles | prennent | ont pris | prenaient | prendront |
+
+
+## voir — _to see_
+
+<sub>added 2026-05-18 from `2026-05-18-issue-2.md`</sub>
+
+| Pronoun | Présent | Passé composé | Imparfait | Futur simple |
+|---|---|---|---|---|
+| je | vois | ai vu | voyais | verrai |
+| tu | vois | as vu | voyais | verras |
+| il/elle | voit | a vu | voyait | verra |
+| nous | voyons | avons vu | voyions | verrons |
+| vous | voyez | avez vu | voyiez | verrez |
+| ils/elles | voient | ont vu | voyaient | verront |
