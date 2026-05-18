@@ -1,29 +1,241 @@
-<!-- Click-to-pronounce styles -->
+<!-- ===== Enhanced French Learning Journal UI ===== -->
 <style>
-  table td.pronounceable {
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-  table td.pronounceable:hover {
-    background-color: rgba(39, 110, 241, 0.08);
-    border-radius: 3px;
-  }
-  table td.pronounceable::after {
-    content: ' 🔊';
-    opacity: 0;
-    font-size: 0.75em;
-    transition: opacity 0.15s ease;
-  }
-  table td.pronounceable:hover::after {
-    opacity: 0.6;
-  }
-  table td.pronouncing {
-    background-color: rgba(39, 110, 241, 0.18) !important;
-  }
-  table td.pronouncing::after {
-    opacity: 1 !important;
-  }
+:root {
+  --fr-blue:    #002395;
+  --fr-red:     #ED2939;
+  --accent:     #276ef1;
+  --accent-lt:  rgba(39,110,241,0.09);
+  --text:       #1a1a2e;
+  --muted:      #6b7280;
+  --border:     #e5e7eb;
+  --bg-card:    #f7f9ff;
+  --shadow:     0 2px 10px rgba(0,35,149,0.09);
+  --radius:     10px;
+}
+
+/* ---- Base ---- */
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: var(--text); }
+
+/* ---- Header gradient ---- */
+.page-header {
+  background: linear-gradient(135deg, var(--fr-blue) 0%, #1a56c4 55%, var(--fr-red) 100%) !important;
+  padding: 2.5rem 4rem 2rem !important;
+}
+.page-header .project-name { font-weight: 800 !important; letter-spacing: -0.5px; }
+
+/* ---- Tables ---- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin: 1.25rem 0 2rem;
+}
+table thead tr { background: var(--fr-blue) !important; }
+table thead th {
+  padding: 0.7rem 1rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.6px !important;
+  text-transform: uppercase !important;
+  color: #fff !important;
+  border: none !important;
+}
+table tbody tr:nth-child(even) { background: #f0f4ff; }
+table tbody tr:hover { background: var(--accent-lt); }
+table td {
+  padding: 0.55rem 1rem !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-left: none !important;
+  border-right: none !important;
+  font-size: 0.93rem !important;
+}
+
+/* ---- Click-to-pronounce ---- */
+table td.pronounceable { cursor: pointer; transition: background .15s; }
+table td.pronounceable:hover { background: var(--accent-lt); border-radius: 3px; }
+table td.pronounceable::after { content: ' 🔊'; opacity: 0; font-size: .75em; transition: opacity .15s; }
+table td.pronounceable:hover::after { opacity: .6; }
+table td.pronouncing { background: rgba(39,110,241,.18) !important; }
+table td.pronouncing::after { opacity: 1 !important; }
+
+/* ---- Headings ---- */
+h2 {
+  color: var(--fr-blue);
+  border-left: 4px solid var(--fr-red);
+  padding-left: .75rem;
+  margin-top: 2.5rem;
+}
+
+/* ---- Filter bar (shared by verbs dropdown + vocab search) ---- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1.25rem;
+  margin: 1rem 0 1.5rem;
+  box-shadow: var(--shadow);
+}
+.filter-bar label {
+  font-weight: 700;
+  color: var(--fr-blue);
+  font-size: .875rem;
+  white-space: nowrap;
+}
+.filter-bar input[type="text"],
+.filter-bar select {
+  flex: 1;
+  min-width: 200px;
+  padding: .45rem .875rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .95rem;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.filter-bar input[type="text"]:focus,
+.filter-bar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(39,110,241,.15);
+}
+.filter-bar .filter-count {
+  font-size: .8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---- Story cards ---- */
+.story-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s, transform .2s;
+}
+.story-card:hover { box-shadow: 0 6px 24px rgba(0,35,149,.13); transform: translateY(-2px); }
+.story-card[data-completed="true"] { border-left: 5px solid #10b981; }
+
+.story-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.story-header h2 { border: none; padding: 0; margin: 0; font-size: 1.15rem; color: var(--fr-blue); }
+.story-date {
+  font-size: .78rem; color: var(--muted); background: #eef2ff;
+  padding: .15rem .55rem; border-radius: 20px; font-weight: 500; margin-left: .4rem;
+}
+.story-badge-completed {
+  display: inline-flex; align-items: center; gap: .25rem;
+  background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;
+  border-radius: 20px; padding: .2rem .75rem; font-size: .78rem; font-weight: 700;
+  white-space: nowrap;
+}
+
+.story-body p { line-height: 1.85; color: var(--text); margin: 0 0 .75rem; }
+.story-summary { color: var(--muted); font-style: italic; font-size: .88rem; }
+
+.story-vocab-section { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+.toggle-vocab-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: .45rem 1rem; font-size: .875rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .4rem;
+  transition: background .2s, transform .15s;
+}
+.toggle-vocab-btn:hover { background: var(--fr-blue); transform: translateY(-1px); }
+.toggle-vocab-btn.active { background: var(--fr-red); }
+
+.story-vocab { margin-top: 1rem; animation: fadeSlide .25s ease; }
+.story-vocab.hidden { display: none; }
+.story-vocab table { margin: 0; box-shadow: none; border: 1px solid var(--border); }
+.story-verbs { margin-top: .75rem; font-size: .9rem; color: var(--text); }
+.story-verbs strong { color: var(--fr-blue); }
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .story-header { flex-direction: column; }
+  .page-header { padding: 1.5rem 1.25rem 1rem !important; }
+}
 </style>
 
-<!-- Click-to-pronounce script -->
+<!-- ===== JS: verb dropdown / vocab search / story toggle ===== -->
 <script src="{{ '/assets/js/pronunciation.js' | relative_url }}" defer></script>
+<script>
+/* Toggle story vocabulary */
+function toggleVocab(btn) {
+  var div = btn.nextElementSibling;
+  var hiding = !div.classList.contains('hidden');
+  div.classList.toggle('hidden', hiding);
+  btn.classList.toggle('active', !hiding);
+  btn.textContent = hiding ? '👁️ ' + btn.dataset.label : '🙈 Hide Vocabulary';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── Verb page: populate dropdown from H2 headings ── */
+  var verbSelect = document.getElementById('verb-select');
+  if (verbSelect) {
+    document.querySelectorAll('h2').forEach(function (h2) {
+      if (!h2.id) return;
+      var opt = document.createElement('option');
+      opt.value = '#' + h2.id;
+      opt.textContent = h2.textContent.replace(/\s+/g, ' ').trim();
+      verbSelect.appendChild(opt);
+    });
+    verbSelect.addEventListener('change', function () {
+      if (!this.value) return;
+      var el = document.querySelector(this.value);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(function () { verbSelect.value = ''; }, 600);
+    });
+    var count = document.querySelectorAll('h2').length;
+    var badge = document.getElementById('verb-count');
+    if (badge) badge.textContent = count + ' verbs';
+  }
+
+  /* ── Vocabulary page: live search filter ── */
+  var vocabSearch = document.getElementById('vocab-search');
+  if (vocabSearch) {
+    var rows = document.querySelectorAll('table tbody tr');
+    var countEl = document.getElementById('vocab-count');
+    if (countEl) countEl.textContent = rows.length + ' words';
+    vocabSearch.addEventListener('input', function () {
+      var q = this.value.toLowerCase();
+      var visible = 0;
+      rows.forEach(function (row) {
+        var show = row.textContent.toLowerCase().includes(q);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      if (countEl) countEl.textContent = (q ? visible + ' / ' + rows.length : rows.length) + ' words';
+    });
+  }
+
+  /* ── Init story toggle button labels ── */
+  document.querySelectorAll('.toggle-vocab-btn').forEach(function (btn) {
+    var div = btn.nextElementSibling;
+    if (!div) return;
+    var n = div.querySelectorAll('tbody tr').length;
+    btn.dataset.label = 'Show Vocabulary (' + n + ' words)';
+    btn.textContent = '👁️ ' + btn.dataset.label;
+  });
+});
+</script>

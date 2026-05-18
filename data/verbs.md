@@ -1,5 +1,15 @@
 ---
+title: Verbs
 ---
+
+<div class="filter-bar">
+  <label for="verb-select">🔍 Jump to verb:</label>
+  <select id="verb-select">
+    <option value="">— select a verb —</option>
+  </select>
+  <span class="filter-count" id="verb-count"></span>
+</div>
+
 # Verbs
 
 Conjugations generated automatically. Newest entries appended below.

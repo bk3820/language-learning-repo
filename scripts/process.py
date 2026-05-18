@@ -232,9 +232,15 @@ def render_vocab_rows(vocab: list[dict]) -> str:
     today = date.today().isoformat()
     rows = []
     for w in vocab:
-        article = w.get("article","")
-        word = w.get("word","")
-        display = f"{article} {word}".strip()
+        article = w.get("article", "").strip()
+        word = w.get("word", "").strip()
+        # Guard against AI returning article already embedded in word (e.g. word="le matin", article="le")
+        word_lower = word.lower()
+        article_lower = article.lower()
+        if article and (word_lower.startswith(article_lower + " ") or word_lower.startswith(article_lower + "'")):
+            display = word
+        else:
+            display = f"{article} {word}".strip()
         rows.append(f"| {display} | {w.get('gender','')} | {w.get('plural','')} | {w.get('english','')} | {today} |")
     return "\n".join(rows) + ("\n" if rows else "")
 
