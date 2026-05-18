@@ -1,0 +1,29 @@
+<!-- Click-to-pronounce styles -->
+<style>
+  table td.pronounceable {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  table td.pronounceable:hover {
+    background-color: rgba(39, 110, 241, 0.08);
+    border-radius: 3px;
+  }
+  table td.pronounceable::after {
+    content: ' 🔊';
+    opacity: 0;
+    font-size: 0.75em;
+    transition: opacity 0.15s ease;
+  }
+  table td.pronounceable:hover::after {
+    opacity: 0.6;
+  }
+  table td.pronouncing {
+    background-color: rgba(39, 110, 241, 0.18) !important;
+  }
+  table td.pronouncing::after {
+    opacity: 1 !important;
+  }
+</style>
+
+<!-- Click-to-pronounce script -->
+<script src="{{ '/assets/js/pronunciation.js' | relative_url }}" defer></script>
