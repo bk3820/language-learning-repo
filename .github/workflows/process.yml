@@ -1,0 +1,41 @@
+name: Process language inbox
+
+on:
+  push:
+    paths:
+      - "inbox/**.md"
+      - "scripts/process.py"
+      - ".github/workflows/process.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to commit generated files
+  models: read      # to call GitHub Models
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run AI processor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: openai/gpt-4o-mini
+        run: python3 scripts/process.py
+
+      - name: Commit & push results
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/ inbox/
+            git commit -m "chore: process language inbox [skip ci]"
+            git push
+          else
+            echo "No changes."
+          fi

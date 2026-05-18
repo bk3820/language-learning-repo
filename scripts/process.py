@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""
+Process new inbox/*.md files:
+  - Parse Verbs / Vocabulary / Adjectives sections
+  - Call GitHub Models AI to generate conjugations & translations
+  - Append to data/*.md
+  - Move processed inbox files into inbox/processed/
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from datetime import date
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+INBOX = ROOT / "inbox"
+PROCESSED = INBOX / "processed"
+DATA = ROOT / "data"
+
+# GitHub Models — OpenAI-compatible endpoint. Free with GITHUB_TOKEN (models:read).
+# https://docs.github.com/en/github-models/use-github-models/prototyping-with-ai-models
+MODELS_ENDPOINT = "https://models.github.ai/inference/chat/completions"
+MODEL = os.environ.get("AI_MODEL", "openai/gpt-4o-mini")
+TOKEN = os.environ.get("GITHUB_TOKEN")
+
+if not TOKEN:
+    print("ERROR: GITHUB_TOKEN env var not set.", file=sys.stderr)
+    sys.exit(1)
+
+
+# ---------- Parsing -----------------------------------------------------------
+
+SECTION_RE = re.compile(r"^\s*#{1,6}\s*(verbs?|vocabulary|vocab|adjectives?|adj)\s*$", re.I)
+
+def parse_inbox_file(path: Path) -> dict[str, list[str]]:
+    buckets = {"verbs": [], "vocabulary": [], "adjectives": []}
+    current = None
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        m = SECTION_RE.match(line)
+        if m:
+            tag = m.group(1).lower()
+            if tag.startswith("verb"):
+                current = "verbs"
+            elif tag.startswith("vocab"):
+                current = "vocabulary"
+            elif tag.startswith("adj"):
+                current = "adjectives"
+            continue
+        if current and not line.startswith("#"):
+            # strip leading list markers
+            item = re.sub(r"^[-*\d.\)]+\s*", "", line).strip()
+            if item:
+                buckets[current].append(item)
+    return buckets
+
+
+# ---------- AI call -----------------------------------------------------------
+
+SYSTEM_PROMPT = """You are a precise French linguistics assistant.
+Return ONLY valid JSON matching the schema the user provides — no prose, no markdown fences."""
+
+USER_TEMPLATE = """For the following French words, return a JSON object with this exact schema:
+
+{{
+  "verbs": [
+    {{
+      "infinitive": "manger",
+      "english": "to eat",
+      "present":   {{"je":"mange","tu":"manges","il":"mange","nous":"mangeons","vous":"mangez","ils":"mangent"}},
+      "passe_compose": {{"je":"ai mangé","tu":"as mangé","il":"a mangé","nous":"avons mangé","vous":"avez mangé","ils":"ont mangé"}},
+      "imparfait": {{"je":"mangeais","tu":"mangeais","il":"mangeait","nous":"mangions","vous":"mangiez","ils":"mangeaient"}},
+      "futur_simple": {{"je":"mangerai","tu":"mangeras","il":"mangera","nous":"mangerons","vous":"mangerez","ils":"mangeront"}}
+    }}
+  ],
+  "vocabulary": [
+    {{"word":"pomme","article":"la","gender":"f","plural":"pommes","english":"apple"}}
+  ],
+  "adjectives": [
+    {{"masc":"grand","fem":"grande","masc_pl":"grands","fem_pl":"grandes","english":"big/tall"}}
+  ]
+}}
+
+Rules:
+- Use correct French elision (j' instead of je) where appropriate inside the conjugation strings.
+- For passé composé, include the auxiliary (avoir/être) and past participle with correct agreement for "il" form (masc sing).
+- If a word is already given with an article (e.g. "la pomme"), keep it but normalize the article field.
+- Omit any word you cannot confidently produce; do not invent.
+- Return ONLY the JSON object, no commentary.
+
+Input:
+VERBS: {verbs}
+VOCABULARY: {vocab}
+ADJECTIVES: {adjectives}
+"""
+
+def call_ai(buckets: dict[str, list[str]]) -> dict:
+    payload = {
+        "model": MODEL,
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": USER_TEMPLATE.format(
+                verbs=json.dumps(buckets["verbs"], ensure_ascii=False),
+                vocab=json.dumps(buckets["vocabulary"], ensure_ascii=False),
+                adjectives=json.dumps(buckets["adjectives"], ensure_ascii=False),
+            )},
+        ],
+    }
+    req = urllib.request.Request(
+        MODELS_ENDPOINT,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {TOKEN}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"HTTP {e.code}: {e.read().decode('utf-8', errors='replace')}", file=sys.stderr)
+        raise
+    content = body["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
+# ---------- Rendering ---------------------------------------------------------
+
+def render_verbs(verbs: list[dict], source: str) -> str:
+    out = []
+    today = date.today().isoformat()
+    for v in verbs:
+        inf = v.get("infinitive", "?")
+        eng = v.get("english", "")
+        out.append(f"\n## {inf} — _{eng}_\n")
+        out.append(f"<sub>added {today} from `{source}`</sub>\n")
+        out.append("| Pronoun | Présent | Passé composé | Imparfait | Futur simple |")
+        out.append("|---|---|---|---|---|")
+        for p, label in [("je","je"),("tu","tu"),("il","il/elle"),("nous","nous"),("vous","vous"),("ils","ils/elles")]:
+            row = [
+                label,
+                v.get("present",{}).get(p,""),
+                v.get("passe_compose",{}).get(p,""),
+                v.get("imparfait",{}).get(p,""),
+                v.get("futur_simple",{}).get(p,""),
+            ]
+            out.append("| " + " | ".join(row) + " |")
+        out.append("")
+    return "\n".join(out)
+
+
+def render_vocab_rows(vocab: list[dict]) -> str:
+    today = date.today().isoformat()
+    rows = []
+    for w in vocab:
+        article = w.get("article","")
+        word = w.get("word","")
+        display = f"{article} {word}".strip()
+        rows.append(f"| {display} | {w.get('gender','')} | {w.get('plural','')} | {w.get('english','')} | {today} |")
+    return "\n".join(rows) + ("\n" if rows else "")
+
+
+def render_adj_rows(adjs: list[dict]) -> str:
+    today = date.today().isoformat()
+    rows = []
+    for a in adjs:
+        rows.append(f"| {a.get('masc','')} | {a.get('fem','')} | {a.get('masc_pl','')} | {a.get('fem_pl','')} | {a.get('english','')} | {today} |")
+    return "\n".join(rows) + ("\n" if rows else "")
+
+
+def append_file(path: Path, content: str):
+    if not content.strip():
+        return
+    with path.open("a", encoding="utf-8") as f:
+        if not content.startswith("\n"):
+            f.write("\n")
+        f.write(content)
+
+
+# ---------- Main --------------------------------------------------------------
+
+def main() -> int:
+    PROCESSED.mkdir(parents=True, exist_ok=True)
+    DATA.mkdir(parents=True, exist_ok=True)
+
+    files = sorted(
+        p for p in INBOX.glob("*.md")
+        if p.name not in {"EXAMPLE.md"} and not p.name.startswith(".")
+    )
+    if not files:
+        print("No inbox files to process.")
+        return 0
+
+    any_changes = False
+    for f in files:
+        print(f"Processing {f.name} …")
+        buckets = parse_inbox_file(f)
+        total = sum(len(v) for v in buckets.values())
+        if total == 0:
+            print(f"  (empty, skipping)")
+            f.rename(PROCESSED / f.name)
+            continue
+
+        result = call_ai(buckets)
+
+        append_file(DATA / "verbs.md",     render_verbs(result.get("verbs", []), f.name))
+        append_file(DATA / "vocabulary.md", render_vocab_rows(result.get("vocabulary", [])))
+        append_file(DATA / "adjectives.md", render_adj_rows(result.get("adjectives", [])))
+
+        f.rename(PROCESSED / f.name)
+        any_changes = True
+        print(f"  ✓ done")
+
+    if not any_changes:
+        print("Nothing to commit.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
