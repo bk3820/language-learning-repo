@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Process new inbox/*.md files:
-  - Parse Verbs / Vocabulary / Adjectives sections
-  - Call GitHub Models AI to generate conjugations & translations
+  - Parse Verbs / Vocabulary / Connectors / Adjectives sections
+  - Skip words already present in data/*.md (dedup)
+  - Call GitHub Models AI to generate conjugations, translations & examples
   - Append to data/*.md
   - Move processed inbox files into inbox/processed/
 """
@@ -35,10 +36,10 @@ if not TOKEN:
 
 # ---------- Parsing -----------------------------------------------------------
 
-SECTION_RE = re.compile(r"^\s*#{1,6}\s*(verbs?|vocabulary|vocab|adjectives?|adj)\s*$", re.I)
+SECTION_RE = re.compile(r"^\s*#{1,6}\s*(verbs?|vocabulary|vocab|connectors?|conn|adjectives?|adj)\s*$", re.I)
 
 def parse_inbox_file(path: Path) -> dict[str, list[str]]:
-    buckets = {"verbs": [], "vocabulary": [], "adjectives": []}
+    buckets = {"verbs": [], "vocabulary": [], "connectors": [], "adjectives": []}
     current = None
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
@@ -51,6 +52,8 @@ def parse_inbox_file(path: Path) -> dict[str, list[str]]:
                 current = "verbs"
             elif tag.startswith("vocab"):
                 current = "vocabulary"
+            elif tag.startswith("conn"):
+                current = "connectors"
             elif tag.startswith("adj"):
                 current = "adjectives"
             continue
@@ -60,6 +63,64 @@ def parse_inbox_file(path: Path) -> dict[str, list[str]]:
             if item:
                 buckets[current].append(item)
     return buckets
+
+
+# ---------- Dedup -------------------------------------------------------------
+
+_ARTICLES = ("l'", "l’", "le ", "la ", "les ", "un ", "une ", "des ", "du ", "de la ", "de l'", "de l’")
+
+def _norm(s: str) -> str:
+    s = s.strip().lower()
+    for a in _ARTICLES:
+        if s.startswith(a):
+            return s[len(a):].strip()
+    return s
+
+def load_existing() -> dict[str, set[str]]:
+    """Return a set of already-known normalized words per bucket."""
+    known: dict[str, set[str]] = {"verbs": set(), "vocabulary": set(), "connectors": set(), "adjectives": set()}
+
+    verbs_md = DATA / "verbs.md"
+    if verbs_md.exists():
+        for line in verbs_md.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"^\s*##\s+([^\s—-]+)\s*[—-]", line)
+            if m:
+                known["verbs"].add(_norm(m.group(1)))
+
+    for bucket, fname in [("vocabulary", "vocabulary.md"), ("connectors", "connectors.md"), ("adjectives", "adjectives.md")]:
+        f = DATA / fname
+        if not f.exists():
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line.startswith("|") or set(line) <= set("|-: "):
+                continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if not cells:
+                continue
+            head = cells[0].lower()
+            if head in {"word", "masculine", "connector", "pronoun"}:
+                continue
+            known[bucket].add(_norm(cells[0]))
+    return known
+
+
+def dedup_buckets(buckets: dict[str, list[str]], known: dict[str, set[str]]) -> tuple[dict[str, list[str]], list[str]]:
+    """Drop inbox items already present in data/. Returns (filtered, skipped_log)."""
+    skipped: list[str] = []
+    out: dict[str, list[str]] = {}
+    for bucket, items in buckets.items():
+        kept: list[str] = []
+        seen_now: set[str] = set()
+        for item in items:
+            key = _norm(item)
+            if key in known.get(bucket, set()) or key in seen_now:
+                skipped.append(f"{bucket}: {item}")
+                continue
+            seen_now.add(key)
+            kept.append(item)
+        out[bucket] = kept
+    return out, skipped
 
 
 # ---------- AI call -----------------------------------------------------------
@@ -83,6 +144,9 @@ USER_TEMPLATE = """For the following French words, return a JSON object with thi
   "vocabulary": [
     {{"word":"pomme","article":"la","gender":"f","plural":"pommes","english":"apple"}}
   ],
+  "connectors": [
+    {{"connector":"donc","english":"therefore/so","example_fr":"Il pleut, donc je reste à la maison.","example_en":"It is raining, so I am staying home."}}
+  ],
   "adjectives": [
     {{"masc":"grand","fem":"grande","masc_pl":"grands","fem_pl":"grandes","english":"big/tall"}}
   ]
@@ -92,12 +156,14 @@ Rules:
 - Use correct French elision (j' instead of je) where appropriate inside the conjugation strings.
 - For passé composé, include the auxiliary (avoir/être) and past participle with correct agreement for "il" form (masc sing).
 - If a word is already given with an article (e.g. "la pomme"), keep it but normalize the article field.
+- For connectors, give one short natural example sentence in French and its English translation. Do NOT use the pipe character `|` inside any string.
 - Omit any word you cannot confidently produce; do not invent.
 - Return ONLY the JSON object, no commentary.
 
 Input:
 VERBS: {verbs}
 VOCABULARY: {vocab}
+CONNECTORS: {connectors}
 ADJECTIVES: {adjectives}
 """
 
@@ -111,6 +177,7 @@ def call_ai(buckets: dict[str, list[str]]) -> dict:
             {"role": "user", "content": USER_TEMPLATE.format(
                 verbs=json.dumps(buckets["verbs"], ensure_ascii=False),
                 vocab=json.dumps(buckets["vocabulary"], ensure_ascii=False),
+                connectors=json.dumps(buckets.get("connectors", []), ensure_ascii=False),
                 adjectives=json.dumps(buckets["adjectives"], ensure_ascii=False),
             )},
         ],
@@ -179,6 +246,26 @@ def render_adj_rows(adjs: list[dict]) -> str:
     return "\n".join(rows) + ("\n" if rows else "")
 
 
+def _escape_cell(s: str) -> str:
+    return s.replace("|", "\\|").replace("\n", " ").strip()
+
+
+def render_connector_rows(conns: list[dict]) -> str:
+    today = date.today().isoformat()
+    rows = []
+    for c in conns:
+        rows.append(
+            "| " + " | ".join([
+                _escape_cell(c.get("connector", "")),
+                _escape_cell(c.get("english", "")),
+                _escape_cell(c.get("example_fr", "")),
+                _escape_cell(c.get("example_en", "")),
+                today,
+            ]) + " |"
+        )
+    return "\n".join(rows) + ("\n" if rows else "")
+
+
 def append_file(path: Path, content: str, table: bool = False):
     """Append content to a file.
 
@@ -217,16 +304,21 @@ def main() -> int:
     for f in files:
         print(f"Processing {f.name} …")
         buckets = parse_inbox_file(f)
+        known = load_existing()
+        buckets, skipped = dedup_buckets(buckets, known)
+        if skipped:
+            print(f"  skipped {len(skipped)} duplicate(s): {', '.join(skipped)}")
         total = sum(len(v) for v in buckets.values())
         if total == 0:
-            print(f"  (empty, skipping)")
+            print(f"  (nothing new, skipping)")
             f.rename(PROCESSED / f.name)
             continue
 
         result = call_ai(buckets)
 
-        append_file(DATA / "verbs.md",     render_verbs(result.get("verbs", []), f.name))
+        append_file(DATA / "verbs.md",      render_verbs(result.get("verbs", []), f.name))
         append_file(DATA / "vocabulary.md", render_vocab_rows(result.get("vocabulary", [])), table=True)
+        append_file(DATA / "connectors.md", render_connector_rows(result.get("connectors", [])), table=True)
         append_file(DATA / "adjectives.md", render_adj_rows(result.get("adjectives", [])), table=True)
 
         f.rename(PROCESSED / f.name)
