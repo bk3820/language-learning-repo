@@ -29,3 +29,16 @@ Conjugations generated automatically. Newest entries appended below.
 | nous | choisissons | avons choisi | choisissions | choisirons |
 | vous | choisissez | avez choisi | choisissiez | choisirez |
 | ils/elles | choisissent | ont choisi | choisissaient | choisiront |
+
+## aller — _to go_
+
+<sub>added 2026-05-18 from `2026-05-18c.md`</sub>
+
+| Pronoun | Présent | Passé composé | Imparfait | Futur simple |
+|---|---|---|---|---|
+| je | vais | suis allé | allais | irai |
+| tu | vas | es allé | allais | iras |
+| il/elle | va | est allé | allait | ira |
+| nous | allons | sommes allés | allions | irons |
+| vous | allez | êtes allés | alliez | irez |
+| ils/elles | vont | sont allés | allaient | iront |
