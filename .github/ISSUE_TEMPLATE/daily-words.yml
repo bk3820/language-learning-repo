@@ -1,0 +1,58 @@
+name: 📚 Daily French words
+description: Paste today's verbs / vocabulary / connectors / adjectives. The bot will conjugate & translate them.
+title: "Daily words — YYYY-MM-DD"
+labels: ["daily-words"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill any sections you want. **One item per line.** Leave a section empty to skip it.
+        After you submit, a GitHub Action will process your words and update `data/*.md`.
+
+  - type: textarea
+    id: verbs
+    attributes:
+      label: Verbs
+      description: French infinitives, one per line (e.g. `manger`, `finir`, `aller`).
+      placeholder: |
+        manger
+        finir
+        aller
+    validations:
+      required: false
+
+  - type: textarea
+    id: vocabulary
+    attributes:
+      label: Vocabulary
+      description: Nouns with their article, one per line (e.g. `la pomme`, `le chien`).
+      placeholder: |
+        la pomme
+        le chien
+        la maison
+    validations:
+      required: false
+
+  - type: textarea
+    id: connectors
+    attributes:
+      label: Connectors
+      description: French connectors / discourse markers (e.g. `donc`, `parce que`, `cependant`).
+      placeholder: |
+        donc
+        parce que
+        cependant
+    validations:
+      required: false
+
+  - type: textarea
+    id: adjectives
+    attributes:
+      label: Adjectives
+      description: Masculine singular form, one per line (e.g. `grand`, `heureux`).
+      placeholder: |
+        grand
+        heureux
+        beau
+    validations:
+      required: false

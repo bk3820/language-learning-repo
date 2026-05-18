@@ -1,0 +1,16 @@
+title: "🇫🇷 French Learning Journal"
+description: Auto-generated French vocab, verb conjugations, connectors, and adjectives.
+theme: jekyll-theme-cayman
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: true
+include:
+  - data
+exclude:
+  - inbox
+  - scripts
+  - .github
+  - README.md

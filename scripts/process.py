@@ -60,7 +60,8 @@ def parse_inbox_file(path: Path) -> dict[str, list[str]]:
         if current and not line.startswith("#"):
             # strip leading list markers
             item = re.sub(r"^[-*\d.\)]+\s*", "", line).strip()
-            if item:
+            # GitHub Issue Forms render empty textareas as "_No response_"
+            if item and item.lower().strip("_ ") != "no response":
                 buckets[current].append(item)
     return buckets
 
