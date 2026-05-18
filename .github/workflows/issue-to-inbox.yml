@@ -2,7 +2,7 @@ name: Issue → Inbox
 
 on:
   issues:
-    types: [opened, edited, labeled]
+    types: [opened, edited, reopened, labeled]
 
 permissions:
   contents: write
@@ -11,7 +11,10 @@ permissions:
 
 jobs:
   process-issue:
-    if: contains(github.event.issue.labels.*.name, 'daily-words')
+    # Trigger on issues created from the daily-words form (label OR template markers in body).
+    if: >-
+      contains(github.event.issue.labels.*.name, 'daily-words') ||
+      (contains(github.event.issue.body, '### Verbs') && contains(github.event.issue.body, '### Vocabulary'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
