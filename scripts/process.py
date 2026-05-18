@@ -179,13 +179,24 @@ def render_adj_rows(adjs: list[dict]) -> str:
     return "\n".join(rows) + ("\n" if rows else "")
 
 
-def append_file(path: Path, content: str):
+def append_file(path: Path, content: str, table: bool = False):
+    """Append content to a file.
+
+    When ``table`` is True we keep rows flush against the existing table —
+    i.e. no blank line between the separator/last row and the new rows
+    (a blank line would terminate the GitHub-Flavored-Markdown table).
+    Otherwise we insert a blank line for readability (verbs use H2 sections).
+    """
     if not content.strip():
         return
-    with path.open("a", encoding="utf-8") as f:
-        if not content.startswith("\n"):
-            f.write("\n")
-        f.write(content)
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    existing = existing.rstrip() + "\n"  # exactly one trailing newline
+    body = content.lstrip("\n")
+    if not table:
+        body = "\n" + body  # blank line separator for prose/section files
+    if not body.endswith("\n"):
+        body += "\n"
+    path.write_text(existing + body, encoding="utf-8")
 
 
 # ---------- Main --------------------------------------------------------------
@@ -215,8 +226,8 @@ def main() -> int:
         result = call_ai(buckets)
 
         append_file(DATA / "verbs.md",     render_verbs(result.get("verbs", []), f.name))
-        append_file(DATA / "vocabulary.md", render_vocab_rows(result.get("vocabulary", [])))
-        append_file(DATA / "adjectives.md", render_adj_rows(result.get("adjectives", [])))
+        append_file(DATA / "vocabulary.md", render_vocab_rows(result.get("vocabulary", [])), table=True)
+        append_file(DATA / "adjectives.md", render_adj_rows(result.get("adjectives", [])), table=True)
 
         f.rename(PROCESSED / f.name)
         any_changes = True
