@@ -13,6 +13,7 @@ Auto-generated daily from inbox notes via [GitHub Actions](https://github.com/BK
 - 📚 [**Vocabulary**](data/vocabulary.md) — nouns with gender, plural, English meaning
 - 🔗 [**Connectors**](data/connectors.md) — discourse markers with example sentences
 - 🎨 [**Adjectives**](data/adjectives.md) — masc / fem / plurals + meaning
+- 📖 [**Daily Stories**](data/stories.md) — ~150-word French stories with vocabulary
 
 ## ➕ Add new words
 

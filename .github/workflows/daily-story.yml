@@ -1,0 +1,52 @@
+name: Daily French Story
+
+on:
+  workflow_dispatch:
+    inputs:
+      add_to_vocab:
+        description: "Add story vocabulary & verbs to data files at end of day"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write   # to commit generated files
+  models: read      # to call GitHub Models
+
+jobs:
+  generate-story:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate daily story
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_MODEL: openai/gpt-4o-mini
+          ADD_TO_VOCAB: ${{ inputs.add_to_vocab }}
+        run: python3 scripts/daily_story.py
+
+      - name: Commit & push results
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/ inbox/
+            LABEL="chore: add daily French story $(date -u +%Y-%m-%d)"
+            if [ "${{ inputs.add_to_vocab }}" = "true" ]; then
+              LABEL="${LABEL} + vocabulary [skip ci]"
+            else
+              LABEL="${LABEL} [skip ci]"
+            fi
+            git commit -m "$LABEL"
+            git push
+          else
+            echo "No changes to commit."
+          fi
